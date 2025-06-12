@@ -110,7 +110,7 @@ _start:
     mov rsi, create_shll_msg
     mov rdx, create_shll_msg_len
     call write
-    
+
     mov rsi, 0
 .redirection:
     mov rdi, [sockfd]
