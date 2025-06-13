@@ -99,7 +99,7 @@ section .text
 _start:
 .connection: 
 
-      mov al, [welcome_displayed] ; Charger la valeur du drapeau
+    mov al, [welcome_displayed] ; Charger la valeur du drapeau
     cmp al, 1                   ; Comparer avec 1 (déjà affiché)
     je .skip_welcome  
      ; --- Affichage du message de bienvenue sur le shell distant ---
