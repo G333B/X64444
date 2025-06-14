@@ -215,7 +215,7 @@ _start:
 
     lea rdi, [rel timespec]
     mov rsi, 0
-    mov rax, 35
+    mov rax, 35 ;syscall for nanosleep
     syscall
     jmp _start ;si erreur alors recommence
 
